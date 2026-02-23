@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntregAqui - Entrega por Geolocalização (3m)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+            transition: background 1s ease;
+        }
+
+        body.chegou {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* Card principal de entrega */
+        .delivery-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .distance-display {
+            font-size: 5rem;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .distance-unit {
+            font-size: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 20px 0;
+            animation: pulse 2s infinite;
+        }
+
+        .status-badge.longe {
+            background: rgba(255, 107, 107, 0.3);
+            border: 2px solid #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .status-badge.perto {
+            background: rgba(255, 217, 61, 0.3);
+            border: 2px solid #ffd93d;
+            color: #ffd93d;
+        }
+
+        .status-badge.chegou {
+            background: rgba(67, 233, 123, 0.3);
+            border: 2px solid #43e97b;
+            color: #43e97b;
+        }
+
+        /* Barra de progresso */
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin: 30px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #43e97b);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        /* Grid de informações */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .info-card i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #ffd93d;
+        }
+
+        .info-card .label {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .info-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Mapa */
+        .map-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .map-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #map {
+            height: 400px;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        /* Botões */
+        .button-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: #ffd93d;
+            color: #333;
+        }
+
+        .btn-primary:hover {
+            background: #ffc107;
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(255, 193, 7, 0.3);
+        }
+
+        .btn-success {
+            background: #43e97b;
+            color: #333;
+        }
+
+        .btn-success:hover {
+            background: #38d976;
+            transform: scale(1.05);
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+            transform: scale(1.05);
+        }
+
+        /* Alerta de entrega */
+        .delivery-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: white;
+            color: #333;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .delivery-alert.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .delivery-alert h2 {
+            color: #43e97b;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .delivery-alert p {
+            margin-bottom: 30px;
+            font-size: 1.2rem;
+        }
+
+        .confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 30px;
+            background: #ffd93d;
+            top: 0;
+            opacity: 0;
+            animation: confetti-fall 3s ease-in infinite;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100%) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Animações */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            10%, 30%, 50%, 70%, 90% {
+                transform: translateX(-5px);
+            }
+            20%, 40%, 60%, 80% {
+                transform: translateX(5px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .distance-display {
+                font-size: 3rem;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Alerta de entrega -->
+    <div class="delivery-alert" id="deliveryAlert">
+        <h2>🎉 ENCOMENGA CHEGOU! 🎉</h2>
+        <p>Sua encomenda foi entregue com sucesso!</p>
+        <p style="font-size: 3rem;">📦</p>
+        <button class="btn btn-success" onclick="fecharAlerta()">Fechar</button>
+    </div>
+
+    <!-- Confetes animados -->
+    <div class="confetti" id="confetti"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 EntregAqui 3M</h1>
+            <p>Monitore sua entrega em tempo real - Aviso a 3 metros do destino!</p>
+        </div>
+
+        <!-- Card principal de entrega -->
+        <div class="delivery-card">
+            <h2>Distância até o destino</h2>
+            <div class="distance-display" id="distance">--<span class="distance-unit">m</span></div>
+            
+            <div class="status-badge longe" id="status">📍 Aguardando localização</div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+            </div>
+
+            <p id="deliveryMessage" style="font-size: 1.2rem; margin-top: 20px;">
+                Defina um ponto de entrega para começar
+            </p>
+        </div>
+
+        <!-- Grid de informações -->
+        <div class="info-grid">
+            <div class="info-card">
+                <i>📍</i>
+                <div class="label">Ponto de Entrega (Latitude)</div>
+                <div class="value" id="destinoLat">--</div>
+            </div>
+            
+            <div class="info-card">
+                <i>📍</i>
+                <div class="label">Ponto de Entrega (Longitude)</div>
+                <div class="value" id="destinoLon">--</div>
+            </div>
+            
+            <div class="info-card">
+                <i>📱</i>
+                <div class="label">Sua Localização (Latitude)</div>
+                <div class="value" id="atualLat">--</div>
+            </div>
+            
+            <div class="info-card">
+                <i>📱</i>
+                <div class="label">Sua Localização (Longitude)</div>
+                <div class="value" id="atualLon">--</div>
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div class="map-container">
+            <div class="map-title">
+                <i>🗺️</i>
+                <h2>Mapa de Entrega</h2>
+            </div>
+            <div id="map"></div>
+            <p style="text-align: center; margin-top: 10px; opacity: 0.8;">
+                🔴 Vermelho: Seu local | 🟢 Verde: Ponto de entrega | ⭕ Círculo: Raio de 3m
+            </p>
+        </div>
+
+        <!-- Botões de controle -->
+        <div class="button-group">
+            <button class="btn btn-primary" id="btnDefinirDestino" onclick="definirDestino()">
+                📍 Definir Ponto de Entrega
+            </button>
+            <button class="btn btn-success" id="btnIniciar" onclick="iniciarMonitoramento()">
+                ▶️ Iniciar Monitoramento
+            </button>
+            <button class="btn btn-danger" id="btnParar" onclick="pararMonitoramento()" disabled>
+                ⏹️ Parar Monitoramento
+            </button>
+        </div>
+
+        <!-- Instruções -->
+        <div style="background: rgba(0, 0, 0, 0.2); padding: 20px; border-radius: 15px; margin-top: 20px;">
+            <h3>📋 Como usar:</h3>
+            <ol style="margin-left: 20px; line-height: 1.8;">
+                <li>1. Clique em "Definir Ponto de Entrega" para marcar onde a encomenda deve ser entregue</li>
+                <li>2. Clique em "Iniciar Monitoramento" para começar a rastrear sua posição</li>
+                <li>3. Caminhe em direção ao ponto marcado</li>
+                <li>4. Quando você estiver a 3 METROS ou menos do destino, um alerta será disparado!</li>
+                <li>5. O fundo da página muda de cor e confetes são lançados quando a encomenda chega</li>
+            </ol>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2024 EntregAqui 3M - Tecnologia de geolocalização com precisão de 3 metros</p>
+        </div>
+    </div>
+
+    <!-- Leaflet CSS e JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Variáveis globais
+        let map;
+        let markerUsuario;
+        let markerDestino;
+        let circleRaio;
+        let watchId = null;
+        let destino = null;
+        let distanciaAtual = 0;
+        let jaEntregou = false;
+
+        // Coordenadas iniciais (São Paulo como fallback)
+        let latUsuario = -23.5505;
+        let lonUsuario = -46.6333;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            iniciarLocalizacao();
+            criarConfetes();
+        });
+
+        // Inicializar mapa
+        function initMap() {
+            map = L.map('map').setView([latUsuario, lonUsuario], 17);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Marker do usuário (vermelho)
+            markerUsuario = L.marker([latUsuario, lonUsuario], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: '🔴',
+                    iconSize: [20, 20]
+                })
+            }).addTo(map).bindPopup('Sua localização atual');
+
+            // Círculo de 3 metros (invisível até definir destino)
+            circleRaio = L.circle([latUsuario, lonUsuario], {
+                color: 'green',
+                fillColor: '#43e97b',
+                fillOpacity: 0.2,
+                radius: 3
+            }).addTo(map);
+            circleRaio.setStyle({ opacity: 0 });
+        }
+
+        // Iniciar localização do usuário
+        function iniciarLocalizacao() {
+            if (!navigator.geolocation) {
+                alert('Geolocalização não é suportada pelo seu navegador!');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    latUsuario = position.coords.latitude;
+                    lonUsuario = position.coords.longitude;
+                    
+                    atualizarPosicaoUsuario();
+                },
+                (error) => {
+                    console.error('Erro ao obter localização:', error);
+                    alert('Erro ao obter localização. Verifique as permissões!');
+                }
+            );
+        }
+
+        // Atualizar posição do usuário no mapa
+        function atualizarPosicaoUsuario() {
+            document.getElementById('atualLat').textContent = latUsuario.toFixed(6);
+            document.getElementById('atualLon').textContent = lonUsuario.toFixed(6);
+            
+            markerUsuario.setLatLng([latUsuario, lonUsuario]);
+            
+            if (destino) {
+                calcularDistancia();
+                
+                // Centralizar mapa se não tiver destino
+                if (!destino) {
+                    map.setView([latUsuario, lonUsuario], 17);
+                }
+            }
+        }
+
+        // Definir ponto de entrega
+        function definirDestino() {
+            if (!navigator.geolocation) {
+                alert('Geolocalização não é suportada!');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    destino = {
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude
+                    };
+                    
+                    document.getElementById('destinoLat').textContent = destino.lat.toFixed(6);
+                    document.getElementById('destinoLon').textContent = destino.lon.toFixed(6);
+                    
+                    // Atualizar ou criar marker do destino
+                    if (markerDestino) {
+                        markerDestino.setLatLng([destino.lat, destino.lon]);
+                    } else {
+                        markerDestino = L.marker([destino.lat, destino.lon], {
+                            icon: L.divIcon({
+                                className: 'custom-marker',
+                                html: '🟢',
+                                iconSize: [20, 20]
+                            })
+                        }).addTo(map).bindPopup('Ponto de entrega');
+                    }
+                    
+                    // Atualizar círculo de 3m
+                    circleRaio.setLatLng([destino.lat, destino.lon]);
+                    circleRaio.setStyle({ opacity: 1, fillOpacity: 0.2 });
+                    
+                    // Centralizar mapa para mostrar ambos os pontos
+                    const bounds = L.latLngBounds([destino.lat, destino.lon], [latUsuario, lonUsuario]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                    
+                    jaEntregou = false;
+                    document.body.classList.remove('chegou');
+                    
+                    alert('✅ Ponto de entrega definido com sucesso! Agora clique em "Iniciar Monitoramento"');
+                },
+                (error) => {
+                    alert('Erro ao obter localização para o ponto de entrega!');
+                }
+            );
+        }
+
+        // Iniciar monitoramento contínuo
+        function iniciarMonitoramento() {
+            if (!destino) {
+                alert('❌ Defina um ponto de entrega primeiro!');
+                return;
+            }
+
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+
+            document.getElementById('btnIniciar').disabled = true;
+            document.getElementById('btnParar').disabled = false;
+            document.getElementById('btnDefinirDestino').disabled = true;
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    latUsuario = position.coords.latitude;
+                    lonUsuario = position.coords.longitude;
+                    
+                    atualizarPosicaoUsuario();
+                    calcularDistancia();
+                },
+                (error) => {
+                    console.error('Erro no monitoramento:', error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
+            );
+        }
+
+        // Parar monitoramento
+        function pararMonitoramento() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            
+            document.getElementById('btnIniciar').disabled = false;
+            document.getElementById('btnParar').disabled = true;
+            document.getElementById('btnDefinirDestino').disabled = false;
+            
+            document.getElementById('status').textContent = '⏸️ Monitoramento pausado';
+            document.getElementById('status').className = 'status-badge longe';
+        }
+
+        // Calcular distância entre dois pontos (fórmula de Haversine)
+        function calcularDistancia() {
+            if (!destino) return;
+
+            const R = 6371e3; // Raio da Terra em metros
+            const φ1 = latUsuario * Math.PI / 180;
+            const φ2 = destino.lat * Math.PI / 180;
+            const Δφ = (destino.lat - latUsuario) * Math.PI / 180;
+            const Δλ = (destino.lon - lonUsuario) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            distanciaAtual = R * c; // Distância em metros
+            
+            // Atualizar display
+            document.getElementById('distance').textContent = distanciaAtual.toFixed(2) + '<span class="distance-unit">m</span>';
+            
+            // Atualizar barra de progresso (quanto mais perto, mais cheia)
+            let progresso = 0;
+            if (distanciaAtual <= 30) {
+                progresso = 100 - (distanciaAtual / 30 * 100);
+            }
+            document.getElementById('progressBar').style.width = Math.min(progresso, 100) + '%';
+            
+            // Atualizar status baseado na distância
+            const statusElement = document.getElementById('status');
+            const messageElement = document.getElementById('deliveryMessage');
+            
+            if (distanciaAtual <= 3) {
+                statusElement.textContent = '✅ ENCOMENGA CHEGOU!';
+                statusElement.className = 'status-badge chegou';
+                messageElement.textContent = '🎉 Parabéns! Sua encomenda foi entregue com sucesso!';
+                document.body.classList.add('chegou');
+                
+                if (!jaEntregou) {
+                    entregarEncomenda();
+                }
+            } else if (distanciaAtual <= 10) {
+                statusElement.textContent = '⚠️ MUITO PERTO! (menos de 10m)';
+                statusElement.className = 'status-badge perto';
+                messageElement.textContent = 'Você está muito perto do destino! Quase lá!';
+            } else if (distanciaAtual <= 20) {
+                statusElement.textContent = '⚠️ PERTO! (menos de 20m)';
+                statusElement.className = 'status-badge perto';
+                messageElement.textContent = 'Continue caminhando, você está ficando perto!';
+            } else {
+                statusElement.textContent = '📍 Longe do destino';
+                statusElement.className = 'status-badge longe';
+                messageElement.textContent = `Você está a ${distanciaAtual.toFixed(2)} metros do destino. Continue caminhando!`;
+            }
+        }
+
+        // Função chamada quando a encomenda chega
+        function entregarEncomenda() {
+            jaEntregou = true;
+            
+            // Mostrar alerta
+            document.getElementById('deliveryAlert').classList.add('show');
+            
+            // Tocar som (se disponível)
+            try {
+                const audio = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
+                audio.play();
+            } catch (e) {
+                console.log('Som não disponível');
+            }
+            
+            // Lançar confetes
+            lancarConfetes();
+            
+            // Vibrar se for celular
+            if (navigator.vibrate) {
+                navigator.vibrate([500, 200, 500]);
+            }
+            
+            // Adicionar classe de shake
+            document.querySelector('.delivery-card').classList.add('shake');
+            setTimeout(() => {
+                document.querySelector('.delivery-card').classList.remove('shake');
+            }, 500);
+        }
+
+        // Fechar alerta
+        function fecharAlerta() {
+            document.getElementById('deliveryAlert').classList.remove('show');
+        }
+
+        // Criar confetes
+        function criarConfetes() {
+            const confetti = document.getElementById('confetti');
+            for (let i = 0; i < 50; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.animationDelay = Math.random() * 2 + 's';
+                piece.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                piece.style.width = Math.random() * 10 + 5 + 'px';
+                piece.style.height = Math.random() * 20 + 10 + 'px';
+                confetti.appendChild(piece);
+            }
+        }
+
+        // Lançar confetes
+        function lancarConfetes() {
+            const pieces = document.querySelectorAll('.confetti-piece');
+            pieces.forEach(piece => {
+                piece.style.animation = 'none';
+                piece.offsetHeight; // Trigger reflow
+                piece.style.animation = 'confetti-fall 3s ease-in infinite';
+                piece.style.animationDelay = Math.random() * 2 + 's';
+            });
+        }
+
+        // Limpar watch ao sair da página
+        window.addEventListener('beforeunload', () => {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+        });
+    </script>
+</body>
+</html>
